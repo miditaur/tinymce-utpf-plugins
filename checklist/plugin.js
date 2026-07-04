@@ -1,10 +1,10 @@
 /*******************************
  * TinyMCE Plugin: checklist
  * Author: Yurii Cherniievskyi
- * Version: 1.1.0
- * Description: Inserts and manages styled interactive checklist items with green check marks, light green completed rows, and red strikethrough lines.
+ * Version: 1.2.0
+ * Description: Inserts and manages styled interactive checklist items with an embedded autonomous runtime script for public page rendering.
  * Created: 2026-07-02
- * Updated: 2026-07-02
+ * Updated: 2026-07-03
  * License: MIT
  *******************************/
 
@@ -12,6 +12,7 @@
     const PLUGIN_ID = 'checklist';
     const BUTTON_BACKGROUND_COLOR = '#ebfaeb';
     const STYLE_ID = 'utpf-checklist-style';
+    const RUNTIME_ID = 'utpf-checklist-runtime';
     const BUTTON_SELECTOR = '[title="checklist"], [aria-label="checklist"]';
 
     function getChecklistCss() {
@@ -90,12 +91,23 @@ ul.utpf-checklist li[data-checked="true"]::after {
         });
     }
 
-    function createChecklistHtml() {
+    function getRuntimeScriptHtml() {
+        const css = JSON.stringify(getChecklistCss());
+        return '<script id="' + RUNTIME_ID + '">(function(){if(window.__UTPF_CHECKLIST_RUNTIME__){return;}window.__UTPF_CHECKLIST_RUNTIME__=true;if(document.body&&document.body.classList&&document.body.classList.contains("mce-content-body")){return;}var css=' + css + ';if(!document.getElementById("' + STYLE_ID + '")){var style=document.createElement("style");style.id="' + STYLE_ID + '";style.textContent=css;document.head.appendChild(style);}document.addEventListener("click",function(event){var target=event.target;if(!target||target.nodeName!=="LI"||!target.closest("ul.utpf-checklist")){return;}var checked=target.getAttribute("data-checked")==="true";target.setAttribute("data-checked",checked?"false":"true");});})();</script>';
+    }
+
+    function createChecklistListHtml() {
         return '<ul class="utpf-checklist" data-utpf-plugin="checklist">' +
             '<li data-checked="false">Checklist item 1</li>' +
             '<li data-checked="false">Checklist item 2</li>' +
             '<li data-checked="false">Checklist item 3</li>' +
             '</ul>';
+    }
+
+    function createChecklistHtml(editor) {
+        const body = editor.getBody();
+        const hasRuntime = body && body.querySelector('#' + RUNTIME_ID);
+        return createChecklistListHtml() + (hasRuntime ? '' : getRuntimeScriptHtml());
     }
 
     function isChecklistItem(target) {
@@ -125,7 +137,7 @@ ul.utpf-checklist li[data-checked="true"]::after {
 
         editor.addCommand(PLUGIN_ID, function() {
             injectEditorStyle(editor);
-            editor.insertContent(createChecklistHtml());
+            editor.insertContent(createChecklistHtml(editor));
         });
 
         editor.ui.registry.addButton(PLUGIN_ID, {
